@@ -1,0 +1,2 @@
+Dataset used: Online Retail Dataset (Kaggle)
+Note: Dataset not uploaded due to size (~95MB).
