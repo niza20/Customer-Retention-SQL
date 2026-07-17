@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Retention & Transaction Behavior — Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --paper: #F6EFDE;
+    --paper-dark: #ECE1C8;
+    --ink: #23301F;
+    --ink-soft: #4A5942;
+    --stamp-red: #8C2C22;
+    --brass: #A9852F;
+    --rule: #C9BB98;
+    --green-deep: #2E4A32;
+    --card-shadow: 0 1px 0 rgba(35,48,31,0.08), 0 8px 20px -12px rgba(35,48,31,0.35);
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.02) 0px, rgba(0,0,0,0.02) 1px, transparent 1px, transparent 34px),
+      var(--paper);
+    color: var(--ink);
+    font-family: 'Source Serif 4', Georgia, serif;
+    padding: 0 0 60px;
+  }
+
+  .wrap{ max-width: 1040px; margin: 0 auto; padding: 0 28px; }
+
+  /* HEADER — ledger cover */
+  header.ledger-head{
+    border-bottom: 3px double var(--ink);
+    padding: 44px 0 26px;
+    margin-bottom: 8px;
+    position: relative;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--stamp-red);
+    margin: 0 0 10px;
+  }
+  h1.title{
+    font-family:'Special Elite', 'Courier New', monospace;
+    font-weight: 400;
+    font-size: clamp(28px, 4.4vw, 44px);
+    line-height: 1.15;
+    margin: 0 0 10px;
+    letter-spacing: 0.01em;
+  }
+  .subtitle{
+    color: var(--ink-soft);
+    font-size: 15.5px;
+    max-width: 620px;
+    margin: 0;
+  }
+  .ledger-meta{
+    position:absolute; top:44px; right:0;
+    text-align:right;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    line-height: 1.7;
+  }
+  .ledger-meta b{ color: var(--ink); }
+
+  /* STAMP — signature element */
+  .stamp{
+    width: 130px; height: 130px;
+    border: 3px solid var(--stamp-red);
+    border-radius: 50%;
+    color: var(--stamp-red);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transform: rotate(-9deg);
+    font-family: 'Special Elite', monospace;
+    position:absolute; right:0; top:170px;
+    background: transparent;
+    mix-blend-mode: multiply;
+    opacity: 0.92;
+  }
+  .stamp .pct{ font-size: 30px; line-height:1; margin-bottom:4px; }
+  .stamp .lbl{ font-size: 9.5px; letter-spacing:0.14em; text-transform:uppercase; }
+  .stamp::before, .stamp::after{ content:''; position:absolute; border:1px solid var(--stamp-red); border-radius:50%; opacity:0.5; }
+  .stamp::before{ inset: 6px; }
+
+  /* KPI ROW — accounting columns */
+  .kpi-row{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin: 46px 0 10px;
+    border-top: 1px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+  }
+  .kpi{
+    padding: 20px 18px;
+    border-right: 1px solid var(--rule);
+  }
+  .kpi:last-child{ border-right:none; }
+  .kpi .num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 27px;
+    font-weight: 600;
+    color: var(--green-deep);
+    letter-spacing: -0.01em;
+  }
+  .kpi .lbl{
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 6px;
+    letter-spacing: 0.02em;
+  }
+
+  /* SECTIONS */
+  section{ margin-top: 54px; }
+  .sec-head{
+    display:flex; align-items:baseline; gap: 12px;
+    margin-bottom: 18px;
+  }
+  .sec-no{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--brass);
+    border: 1px solid var(--brass);
+    padding: 2px 7px;
+  }
+  .sec-title{
+    font-family:'Special Elite', monospace;
+    font-size: 19px;
+    font-weight: 400;
+    margin: 0;
+  }
+  .sec-note{
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin: -8px 0 20px 46px;
+  }
+
+  .card{
+    background: var(--paper-dark);
+    border: 1px solid var(--rule);
+    box-shadow: var(--card-shadow);
+    padding: 22px 22px 14px;
+  }
+
+  .grid-2{ display:grid; grid-template-columns: 1.3fr 1fr; gap: 22px; }
+  @media (max-width: 780px){ .grid-2{ grid-template-columns: 1fr; } .kpi-row{ grid-template-columns: repeat(2,1fr);} .ledger-meta,.stamp{ position:static; margin-top:14px; transform:none; } }
+
+  canvas{ max-width:100%; }
+
+  /* TOP CUSTOMERS TABLE — invoice ledger lines */
+  table.ledger-table{
+    width:100%;
+    border-collapse: collapse;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+  }
+  table.ledger-table th{
+    text-align:left;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--ink);
+  }
+  table.ledger-table td{
+    padding: 9px 10px;
+    border-bottom: 1px dashed var(--rule);
+  }
+  table.ledger-table td.amt, table.ledger-table th.amt{ text-align:right; }
+  table.ledger-table tr:hover td{ background: rgba(140,44,34,0.05); }
+  .rank{ color: var(--brass); font-weight:600; }
+  .bar-cell{ position:relative; }
+  .bar-fill{
+    position:absolute; left:0; top:0; bottom:0;
+    background: rgba(46,74,50,0.13);
+    z-index:0;
+  }
+  .bar-cell span{ position:relative; z-index:1; }
+
+  footer{
+    margin-top: 60px;
+    padding-top: 18px;
+    border-top: 1px solid var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+
+  ::selection{ background: var(--stamp-red); color: var(--paper); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="ledger-head">
+    <p class="eyebrow">Online Retail II — Transaction Ledger</p>
+    <h1 class="title">Customer Retention &amp;<br>Transaction Behavior</h1>
+    <p class="subtitle">Derived from 805,620 cleaned invoice lines across 5,881 customers, Dec 2009 – Dec 2011. Figures below reproduce the project's SQL analysis exactly.</p>
+    <div class="ledger-meta">
+      <div>DATASET&nbsp; <b>online_retail_ii</b></div>
+      <div>RECORDS (CLEAN)&nbsp; <b id="m-records">—</b></div>
+      <div>PERIOD&nbsp; <b id="m-period">—</b></div>
+    </div>
+    <div class="stamp">
+      <div class="pct" id="stamp-pct">—</div>
+      <div class="lbl">Retained</div>
+    </div>
+  </header>
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="num" id="kpi-revenue">—</div><div class="lbl">Total Revenue</div></div>
+    <div class="kpi"><div class="num" id="kpi-customers">—</div><div class="lbl">Unique Customers</div></div>
+    <div class="kpi"><div class="num" id="kpi-retention">—</div><div class="lbl">Retention Rate</div></div>
+    <div class="kpi"><div class="num" id="kpi-aov">—</div><div class="lbl">Avg. Order Value</div></div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">01</span><h2 class="sec-title">Repeat vs. One-Time Customers</h2></div>
+    <p class="sec-note">Customer segmentation by distinct invoice count.</p>
+    <div class="grid-2">
+      <div class="card"><canvas id="segChart" height="220"></canvas></div>
+      <div class="card" style="display:flex; flex-direction:column; justify-content:center; gap:16px;">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:24px; color:var(--green-deep); font-weight:600;" id="seg-repeat">—</div>
+          <div style="font-size:12px; color:var(--ink-soft);">Repeat customers — purchased more than once</div>
+        </div>
+        <div style="border-top:1px dashed var(--rule); padding-top:16px;">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:24px; color:var(--stamp-red); font-weight:600;" id="seg-onetime">—</div>
+          <div style="font-size:12px; color:var(--ink-soft);">One-time customers — single invoice only</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">02</span><h2 class="sec-title">Monthly Revenue Trend</h2></div>
+    <p class="sec-note">Revenue booked per calendar month, Dec 2009 – Dec 2011.</p>
+    <div class="card"><canvas id="monthlyChart" height="110"></canvas></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">03</span><h2 class="sec-title">Top 10 Customers by Spend</h2></div>
+    <p class="sec-note">Highest lifetime revenue, single customer IDs.</p>
+    <div class="card">
+      <table class="ledger-table">
+        <thead><tr><th>Rank</th><th>Customer ID</th><th class="amt">Total Spent</th></tr></thead>
+        <tbody id="top10-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">04</span><h2 class="sec-title">Revenue by Country</h2></div>
+    <p class="sec-note">Top 10 markets outside the dominant UK base (shown log-scaled for comparison).</p>
+    <div class="card"><canvas id="countryChart" height="200"></canvas></div>
+  </section>
+
+  <footer>
+    <span>Customer-Retention-SQL — analysis reproduced in Python/pandas from the same cleaning &amp; aggregation logic as the MySQL queries.</span>
+    <span>Source: UCI Online Retail II</span>
+  </footer>
+
+</div>
+
+<script>
+const DATA = {"total_revenue": 17743429.178000003, "total_customers": 5881, "total_transactions": 36975, "retention_rate": 72.35, "segmentation": [{"Customer_Type": "One-Time", "Number_of_Customers": 1626}, {"Customer_Type": "Repeat", "Number_of_Customers": 4255}], "top10": [{"Customer ID": 18102, "Total_Spent": 608821.65}, {"Customer ID": 14646, "Total_Spent": 528602.52}, {"Customer ID": 14156, "Total_Spent": 313946.37}, {"Customer ID": 14911, "Total_Spent": 295972.63}, {"Customer ID": 17450, "Total_Spent": 246973.09}, {"Customer ID": 13694, "Total_Spent": 196482.81}, {"Customer ID": 17511, "Total_Spent": 175603.55}, {"Customer ID": 16446, "Total_Spent": 168472.5}, {"Customer ID": 16684, "Total_Spent": 147142.77}, {"Customer ID": 12415, "Total_Spent": 144458.37}], "monthly": [{"Month": "2009-12", "Revenue": 686654.16}, {"Month": "2010-01", "Revenue": 557319.062}, {"Month": "2010-02", "Revenue": 506371.066}, {"Month": "2010-03", "Revenue": 699608.991}, {"Month": "2010-04", "Revenue": 594609.192}, {"Month": "2010-05", "Revenue": 599985.79}, {"Month": "2010-06", "Revenue": 639066.58}, {"Month": "2010-07", "Revenue": 591636.74}, {"Month": "2010-08", "Revenue": 604242.65}, {"Month": "2010-09", "Revenue": 831615.001}, {"Month": "2010-10", "Revenue": 1036680.0}, {"Month": "2010-11", "Revenue": 1172336.042}, {"Month": "2010-12", "Revenue": 884591.89}, {"Month": "2011-01", "Revenue": 569445.04}, {"Month": "2011-02", "Revenue": 447137.35}, {"Month": "2011-03", "Revenue": 595500.76}, {"Month": "2011-04", "Revenue": 469200.361}, {"Month": "2011-05", "Revenue": 678594.56}, {"Month": "2011-06", "Revenue": 661213.69}, {"Month": "2011-07", "Revenue": 600091.011}, {"Month": "2011-08", "Revenue": 645343.9}, {"Month": "2011-09", "Revenue": 952838.382}, {"Month": "2011-10", "Revenue": 1039318.79}, {"Month": "2011-11", "Revenue": 1161817.3800000001}, {"Month": "2011-12", "Revenue": 518210.79}], "country_rev": [{"Country": "United Kingdom", "Revenue": 14723147.517}, {"Country": "EIRE", "Revenue": 621631.11}, {"Country": "Netherlands", "Revenue": 554232.34}, {"Country": "Germany", "Revenue": 431262.461}, {"Country": "France", "Revenue": 355257.47}, {"Country": "Australia", "Revenue": 169968.11000000002}, {"Country": "Spain", "Revenue": 109178.53}, {"Country": "Switzerland", "Revenue": 100365.34}, {"Country": "Sweden", "Revenue": 91549.72}, {"Country": "Denmark", "Revenue": 69862.19}], "date_range": ["2009-12-01 07:45:00", "2011-12-09 12:50:00"], "avg_order_value": 479.87638074374587, "records_after_clean": 805620};
+
+const fmtGBP = n => '£' + Math.round(n).toLocaleString('en-GB');
+const fmtNum = n => n.toLocaleString('en-GB');
+
+document.getElementById('m-records').textContent = fmtNum(DATA.records_after_clean);
+document.getElementById('m-period').textContent = DATA.date_range[0].slice(0,10) + ' → ' + DATA.date_range[1].slice(0,10);
+document.getElementById('stamp-pct').textContent = DATA.retention_rate + '%';
+
+document.getElementById('kpi-revenue').textContent = fmtGBP(DATA.total_revenue);
+document.getElementById('kpi-customers').textContent = fmtNum(DATA.total_customers);
+document.getElementById('kpi-retention').textContent = DATA.retention_rate + '%';
+document.getElementById('kpi-aov').textContent = fmtGBP(DATA.avg_order_value);
+
+const seg = {};
+DATA.segmentation.forEach(r => seg[r.Customer_Type] = r.Number_of_Customers);
+document.getElementById('seg-repeat').textContent = fmtNum(seg['Repeat'] || 0) + ' customers';
+document.getElementById('seg-onetime').textContent = fmtNum(seg['One-Time'] || 0) + ' customers';
+
+const INK = '#23301F', GREEN = '#2E4A32', RED = '#8C2C22', BRASS = '#A9852F', RULE = '#C9BB98';
+Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+Chart.defaults.color = '#4A5942';
+Chart.defaults.borderColor = RULE;
+
+new Chart(document.getElementById('segChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Repeat', 'One-Time'],
+    datasets: [{
+      data: [seg['Repeat'] || 0, seg['One-Time'] || 0],
+      backgroundColor: [GREEN, RED],
+      borderColor: '#F6EFDE',
+      borderWidth: 3
+    }]
+  },
+  options: {
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16, font:{size:11} } } },
+    cutout: '62%'
+  }
+});
+
+new Chart(document.getElementById('monthlyChart'), {
+  type: 'line',
+  data: {
+    labels: DATA.monthly.map(r => r.Month),
+    datasets: [{
+      label: 'Revenue',
+      data: DATA.monthly.map(r => r.Revenue),
+      borderColor: GREEN,
+      backgroundColor: 'rgba(46,74,50,0.10)',
+      fill: true,
+      tension: 0.25,
+      pointRadius: 2.5,
+      pointBackgroundColor: BRASS,
+      borderWidth: 2
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { maxRotation: 60, minRotation: 60, font:{size:10} }, grid:{ display:false } },
+      y: { ticks: { callback: v => '£' + (v/1000) + 'k', font:{size:10} }, grid:{ color: RULE } }
+    }
+  }
+});
+
+const top10Body = document.getElementById('top10-body');
+const maxSpend = Math.max(...DATA.top10.map(r => r.Total_Spent));
+DATA.top10.forEach((r, i) => {
+  const pct = (r.Total_Spent / maxSpend) * 100;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="rank">${String(i+1).padStart(2,'0')}</td>
+    <td>${r['Customer ID']}</td>
+    <td class="amt bar-cell"><span class="bar-fill" style="width:${pct}%"></span><span>${fmtGBP(r.Total_Spent)}</span></td>
+  `;
+  top10Body.appendChild(tr);
+});
+
+new Chart(document.getElementById('countryChart'), {
+  type: 'bar',
+  data: {
+    labels: DATA.country_rev.map(r => r.Country),
+    datasets: [{
+      label: 'Revenue',
+      data: DATA.country_rev.map(r => r.Revenue),
+      backgroundColor: RED,
+      borderRadius: 2,
+      barThickness: 22
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { type: 'logarithmic', ticks: { callback: v => { const l = Math.log10(v); return Number.isInteger(l) ? '£'+v.toLocaleString() : ''; }, font:{size:10} }, grid:{ color: RULE } },
+      y: { grid: { display:false }, ticks:{ font:{size:11} } }
+    }
+  }
+});
+</script>
+</body>
+</html>
